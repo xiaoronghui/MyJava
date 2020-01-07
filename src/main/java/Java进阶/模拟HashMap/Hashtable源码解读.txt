@@ -1,0 +1,147 @@
+
+1.和hashMap区别参考http://www.tuicool.com/articles/JVVVbeQ
+  
+
+2.计算索引的代码解析： 
+  
+  int hash = key.hashCode();
+  
+  int index = (hash & 0x7FFFFFFF) % tab.length;	
+
+  解析：
+
+　　整型占4个字节占32位.最高位是符号位,1表示负数,0表示整数. 正数的最大值是 0111 1111 1111 1111 1111 1111 1111 1111
+
+　　0x表示是16进制,0x7FFFFFFF表示的二进制是 0111 1111 1111 1111 1111 1111 1111 1111
+
+    & 表示与操作, 二进制中只有0,1, 不管原数是0还是1,只要和1与操作,则不产生任何变化.和0与操作永远为0.
+    
+    那么为什么要用hash & 0x7FFFFFFF呢?
+
+      因为hashCode是可能为负数的,经过和0x7FFFFFFF与之后必然为正数.其实这段代码就是求绝对值
+
+    
+3.为什么hashtable中默认的数组大小是11呢,而且扩容的时候总是2*n+1,也就是说总是奇数?
+
+  那是因为hashCode%tab.length的求余运算, 如果数组的长度为字数的话,就更不容易除清.
+
+  很少有数组是奇数的整数倍,这样余数就更分散,从而保证了元素均匀的保存在的数组中.
+
+  这种方式比hashMap中好,不需要再重新计算hash
+
+4.Enumeration<K> keys() 是什么意思,Enumeration是什么?   
+    
+  Enumeration是一个接口,称之为列举.可以用来遍历
+
+  
+5.定义的三个常量是为了什么?
+
+    private static final int KEYS = 0;
+    private static final int VALUES = 1;
+    private static final int ENTRIES = 2;
+   
+    这3个常量用在nextElement方法中,用来表明你想要的是列举key还是列举value还是列举元素
+
+    public T nextElement() {
+	    Entry<K,V> et = entry;
+	    int i = index;
+	    Entry[] t = table;
+	    /* Use locals for faster loop iteration */
+	    while (et == null && i > 0) {
+		et = t[--i];
+	    }
+	    entry = et;
+	    index = i;
+	    if (et != null) {
+		Entry<K,V> e = lastReturned = entry;
+		entry = e.next;
+		return type == KEYS ? (T)e.key : (type == VALUES ? (T)e.value : (T)e);
+	    }
+	    throw new NoSuchElementException("Hashtable Enumerator");
+   }
+
+6.getEnumeration(int type) 方法解析. -- > 需要自己测试下
+      
+      //根据上面的3个常量返回不同的列举
+      private <T> Enumeration<T> getEnumeration(int type) {
+	if (count == 0) {
+	    return (Enumeration<T>)emptyEnumerator;
+	} else {
+	    return new Enumerator<T>(type, false);
+	}
+      }
+
+7.Enumerator类的remove()方法解析,该方法是移除上一次返回的元素
+
+
+  public void remove() {
+		
+	     //如果是列举则不支持remove操作.
+	    if (!iterator) throw new UnsupportedOperationException();
+		
+	    //如果上一次返回的是null,证明已经没有元素了
+	    if (lastReturned == null) throw new IllegalStateException("Hashtable Enumerator");
+		
+	    //若此期间有人改动,则报错
+	    if (modCount != expectedModCount) throw new ConcurrentModificationException();
+
+	    synchronized(Hashtable.this) {
+		Entry[] tab = Hashtable.this.table;
+		int index = (lastReturned.hash & 0x7FFFFFFF) % tab.length;  //重新定位,因为这个位置可能有多个
+			
+		for (Entry<K,V> e = tab[index], prev = null; e != null;prev = e, e = e.next){
+
+		    if (e == lastReturned) { //当前e和上一个元素相等
+			modCount++;
+			expectedModCount++;
+			if (prev == null)  //无形之中删除元素
+			    tab[index] = e.next;
+			else
+			    prev.next = e.next;
+			count--;
+			//移除之后,把上一次返回的设置为null.从这里可以得知,只有调用next()方法一次之后才可以remove()一次.
+                        //连续两次调用remove是会报错的.或者没调用next方法也会报错.
+			lastReturned = null; 
+			return;
+		    }
+		}
+		throw new ConcurrentModificationException();
+	    }
+  }
+ 
+8. Collections.synchronizedSet(new KeySet(), this);有什么意义?
+   
+   可以使集合是线程安全的. 在这个keySet删除同时会删除数组的元素,所以要保证线程安全.
+
+9.reconstitutionPut方法解析,reconstitution是重新构建的意思
+     
+     //该方法在readObject方法中,也就是反序列化的时候用到.重新构建table的构成中容量都是现成的,不涉及扩容问题,
+     //从而该方法不写扩容相关代码.该方法更简洁更适合于这个场景.和HahsMap中的putForCreate一样
+     private void reconstitutionPut(Entry[] tab, K key, V value)
+        throws StreamCorruptedException
+    {
+        if (value == null) {
+            throw new java.io.StreamCorruptedException();
+        }
+        // Makes sure the key is not already in the hashtable.
+        // This should not happen in deserialized version.
+        int hash = key.hashCode();
+        int index = (hash & 0x7FFFFFFF) % tab.length;
+        for (Entry<K,V> e = tab[index] ; e != null ; e = e.next) {
+            if ((e.hash == hash) && e.key.equals(key)) {
+                throw new java.io.StreamCorruptedException();
+            }
+        }
+        // Creates the new entry.
+        Entry<K,V> e = tab[index];
+        tab[index] = new Entry<K,V>(hash, key, value, e);
+        count++;
+    }
+
+10.elements方法和values方法
+
+   elements方法返回value的列举
+
+   values方法返回value的集合
+
+

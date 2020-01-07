@@ -1,0 +1,19 @@
+结构型模式 :
+  
+              参考 : https://www.cnblogs.com/studynote/p/3406219.html
+	 
+	 对比参考 : https://blog.csdn.net/wyxhd2008/article/details/5619956
+	 
+	 结构型模式，顾名思义讨论的是类和对象的结构如何设计，通过组合一些对象，从而实现新的 功能（对象结构型模式）
+	 
+	 比如 : 我们要面向切面编程,可以通过代理模式,代理模式就是设计一种巧妙的类与依赖对象
+	  
+	        结构来完成.达到了我们所要的想要.配置一下,所有地方都可以打印了.
+			
+	 结构型模式包含 : 适配器模式,桥接模式,组合模式,装饰模式,外观模式,享元模式,代理模式
+	 
+	所有设计模式参考 :  
+	
+		https://www.cnblogs.com/betterboyz/category/1260384.html
+		
+		https://www.runoob.com/design-pattern/decorator-pattern.html

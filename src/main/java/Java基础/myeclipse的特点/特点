@@ -1,0 +1,4 @@
+1.编译后的class文件时放到工程的bin目录中
+   可以点开属性-->Java Build Path页的default output folder设置这个目录
+   
+ 2.

@@ -1,0 +1,247 @@
+
+ 1.  static final int MAXIMUM_CAPACITY = 1 << 30; 为什么要写成 1 << 30?
+
+     表示2的30次方.如何在代码中表示2的30次方的,又不好表示,只好这么写.
+
+ 2. static public boolean isNaN(float v) { return (v != v); } 方法有什么意义?
+
+    原因是在Float中定义了常量NaN,还有其它的一些常量,这些常量称之为非数字常量,
+
+    而且两个NaN之间不相等,这有点奇怪.
+
+    其实这个方法就是检测参数是否这些常量,如果是则返回ture,不是返回false;
+
+ 3.hash方法看不懂,到底为什么要那样做?
+
+    目的是为了让hash的1变得松散一些,最终的目的是为了让元素均匀的放在数组的不同位置上
+    
+    举例: 
+
+      	我们创建一个hashmap，其entry数组为默认大小16。
+
+	现在有一个key、value的元素需要存储到hashmap里，该key的hashcode是0ABC0000（8个16进制数，共32位），如果不经过hash函数处理这个hashcode，
+
+	这个元素过会儿将会被存放在entry数组中下标为0处。下标=ABCD0000 & (16-1) = 0。
+
+	然后我们又要存储另外一个元素，其key的hashcode是0DEF0000，得到数组下标依然是0。
+
+	想必你已经看出来了，这是个实现得很差的hash算法，因为hashcode的1位全集中在前16位了，导致算出来的数组下标一直是0。
+
+	于是，明明key相差很大的元素，却存放在了同一个链表里，导致以后查询起来比较慢。
+
+	hash函数的通过若干次的移位、异或操作，把hashcode的“1位”变得“松散”，比如，经过hash函数处理后，
+
+	0ABC0000变为A02188B，0DEF0000变为D2AFC70，他们的数组下标不再是清一色的0了。
+
+	hash函数具体的做法很简单，你画个图就知道了，无非是让各数位上的值受到其他数位的值的影响
+
+  4.getForNullKey有什么意义?
+
+    null的hashcode是0,从而把null作为key的元素放在数组的第一个位置上.该方法就是查找key为null的元素.
+
+    返回找到元素,putForNullKey方法就是把为null的key放入数组中的第一个位置.
+
+
+  5.recordAccess有何意义?
+   
+    是个空实现,没有任何意义.它的子类LinkedHashMap实现了这个方法.
+
+    这个方法可能就是留着备用的
+
+  6.addEntry方法和createEntry解析
+
+    Entry<K,V> e = table[bucketIndex];    //拿到当前位置entry
+    table[bucketIndex] = new Entry<K,V>(hash, key, value, e);  //构造一个新的entry放到刚才那个enrty的前面
+    if (size++ >= threshold)  //元素个数要是大于阀值,则扩容2倍
+    resize(2 * table.length);
+	
+    
+    //基本和addEntry一样,只是该方法不进行扩容,这是为什么呢?
+    void createEntry(int hash, K key, V value, int bucketIndex) {
+	Entry<K,V> e = table[bucketIndex];
+        table[bucketIndex] = new Entry<K,V>(hash, key, value, e);
+        size++;
+    }
+    
+  7.resize方法解析
+
+      void resize(int newCapacity) {
+        Entry[] oldTable = table;
+        int oldCapacity = oldTable.length;
+        if (oldCapacity == MAXIMUM_CAPACITY) {   //初始最大容量是2的30次方,
+            threshold = Integer.MAX_VALUE; //如果已经达到最大容量,则把阈值设置为整型的最大值,这样就不会再进行扩容了
+            return; 
+        }
+
+        Entry[] newTable = new Entry[newCapacity];  //根据新的容量创建一个数组
+        transfer(newTable);  //把原数组的数据迁移到新数组
+        table = newTable;  //元素组迁移到新数组
+        threshold = (int)(newCapacity * loadFactor); //计算出新的阀值
+
+    }
+  
+ 8. transfer(newTable);方法解析
+
+   	Entry[] src = table;  
+        int newCapacity = newTable.length;
+        for (int j = 0; j < src.length; j++) {  //遍历原数组
+            Entry<K,V> e = src[j];
+            if (e != null) {      //如果当前元素不为null
+                src[j] = null; //原数组的引用设置为null
+                do {
+                    Entry<K,V> next = e.next;  
+                    int i = indexFor(e.hash, newCapacity);  //根据新数组的长度和hash计算新的索引位置
+                    e.next = newTable[i]; //加到新数组i位置的头部
+                    newTable[i] = e;
+                    e = next;  //把下一个元素的赋值为e,为下一个e重新计算位置
+                } while (e != null);
+            }
+        }
+    
+    transfer方法总结: 就是遍历原数组,把每一个entry拿出来重新计算在数组的索引值,然后放到这个位置.原先放在同一链表中的两个元素,
+
+                      在新数组中可能放到不同的链表中.
+	
+ 9.  putForCreate解析
+
+      该方法是由于发现数组中不存在你要插入的key,就创建一个entry.
+
+ 10.为什么有了put方法还要putForCreate方法?  
+
+    putForCreate调用了createEntry方法,也就是说putForCreate不支持扩容操作.
+
+    putForCreate ,putAllForCreate ,createEntry 三个方法都是外部无法访问的
+    
+
+    构造方法:    
+
+        public HashMap(Map<? extends K, ? extends V> m) {
+	   
+	   原因: 这句执行完之后容量已经够了,后面要是往里面添加元素就不需要进行扩容操作了.能省一个步骤省一个步骤.	
+           this(Math.max((int) (m.size() / DEFAULT_LOAD_FACTOR) + 1,DEFAULT_INITIAL_CAPACITY), DEFAULT_LOAD_FACTOR); 
+           putAllForCreate(m); //putAllForCreate内部调用了putForCreate
+       }
+
+ 11.putAll 解析
+
+     public void putAll(Map<? extends K, ? extends V> m) {
+        int numKeysToBeAdded = m.size();
+        if (numKeysToBeAdded == 0)  //若要put的map长度为0,则直接返回
+            return;
+
+        if (numKeysToBeAdded > threshold) {   //若需要put的个数大于阀值,则需要准备扩容
+
+            int targetCapacity = (int)(numKeysToBeAdded / loadFactor + 1);  //计算需要put的个数总的需要多少容量,计算的时候可能会超过最大容量
+
+            if (targetCapacity > MAXIMUM_CAPACITY)  //不能超过最大容量
+                targetCapacity = MAXIMUM_CAPACITY;
+            int newCapacity = table.length;  //获取当前数组的长度
+            while (newCapacity < targetCapacity)    //当前数组的容量要是比需要的小,则扩容2倍,直到比需要的容量大位置.
+                newCapacity <<= 1;
+            if (newCapacity > table.length)  //若扩容的量大于当前数组的长度,则当前数组需要执行扩容,否则不执行扩容
+                resize(newCapacity);
+        }
+        
+        //复制添加
+        for (Iterator<? extends Map.Entry<? extends K, ? extends V>> i = m.entrySet().iterator(); i.hasNext(); ) {
+            Map.Entry<? extends K, ? extends V> e = i.next();
+            put(e.getKey(), e.getValue()); 
+        }
+    }
+
+  12.removeEntryForKey解析
+
+     final Entry<K,V> removeEntryForKey(Object key) {
+        int hash = (key == null) ? 0 : hash(key.hashCode());
+        int i = indexFor(hash, table.length);
+        Entry<K,V> prev = table[i];
+        Entry<K,V> e = prev;
+
+        while (e != null) {
+            Entry<K,V> next = e.next;
+            Object k;
+            if (e.hash == hash &&
+                ((k = e.key) == key || (key != null && key.equals(k)))) {
+                modCount++;
+                size--;
+                if (prev == e)  //若找到了这个元素,且是第一个,则把下一个放到前面,无形之中把元素删除了
+                    table[i] = next;
+                else
+                    prev.next = next;  若不是第一个,则把上一个next链接当前元素的next,无形之中把元素删除了
+                e.recordRemoval(this); //recordRemoval方法是个空方法
+                return e;
+            }
+            prev = e;
+            e = next;//若没有找到,则切换当前元素.最终e的值会为null.从而若key不存在则返回null
+        }
+
+        return e;
+    }  
+
+  13.removeMapping方法
+
+     该方法的参数必须是Map.Entry类型,也就是说根据Enrty来删除.删除原理和removeEntryForKey类似.
+
+  14.fast-fail是什么意思?
+
+     字面意思是快速失败.hashtable，hashmap等非并发集合，如果在迭代过程中增减了数据，就是快速失败.
+	
+     会抛ConcurrentModificationException异常.
+
+  15.while (index < t.length && (next = t[index++]) == null); 的含义
+
+      把数组中有值的那个entry赋值给next.
+
+      (next = t[index++]) == null  -->当前位置要是等于null则继续遍历,直找到不等于null的位置.这个循环写的巧妙,简洁
+
+      我的写法:  --> 对方一行代码就搞定了.
+
+        for(int i = 0 ; i < t.length() ; i ++){
+           if(t[i] == null) continue;
+           next = t[i]
+	   break;		
+        }
+                                          
+ 16.HashIterator的nextEntry解析
+
+      final Entry<K,V> nextEntry() {
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();
+            Entry<K,V> e = next;  //把刚才的next作为当前元素
+            if (e == null)
+                throw new NoSuchElementException();
+
+            if ((next = e.next) == null) {   //替换和查找下一个next
+                Entry[] t = table;
+                while (index < t.length && (next = t[index++]) == null)
+                    ;
+            }
+	    current = e;
+            return e;
+        }
+ 
+ 17.HashIterator的remove解析
+
+    移除当前元素
+
+ 18.为什么打印Collection的时候打印的是[A,B,C]这么好看的格式呢?
+
+    那是Collection指向的集合都继承了AbstractCollection这个抽象类,该抽象类重写了toString()方法
+
+ 19. HashMap.this是什么意思? 从来没见过
+
+     防止混淆,通常this指的是当前调用的对象,而内部类如果想使用外部类的方法,如果这个方法还和内部类的方法名称一样,
+
+     那么就会混淆,从而调用外部类的方法的时候需要 --> 类名.this.方法
+　
+ 20.writeObject和readObject是用来干嘛的,而且还是private?
+
+     HashMap 是自行管理序列化的，你可以看看它提供了两个函数：
+
+     writeObject(java.io.ObjectOutputStream s) // 序列化时调用
+
+     readObject(java.io.ObjectInputStream s) // 反序列化时调用
+
+     HashMap会在readObject中，将所需要的对象重新初始化回来
+
+21.当key为一个对象的时候,如果想要让相同属性值的对象表示为同一个key,则需要重写hashCode和equals方法

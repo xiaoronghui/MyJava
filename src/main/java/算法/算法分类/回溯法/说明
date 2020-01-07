@@ -1,0 +1,44 @@
+ -- 回溯法
+ 
+  参考 : https://www.cnblogs.com/lzxin/p/9714133.html
+
+   回溯法（探索与回溯法）是一种选优搜索法，又称为试探法，按选优条件向前搜索，以达到目标。
+   
+   但当探索到某一步时，发现原先选择并不优或达不到目标， 就退回一步重新选择，这种走不通就退回再走的技术为回溯法，
+   
+   而满足回溯条件的某个状态的点称为“回溯点”。
+   
+   例如 : 给定一个数组{1,2,3,4},求数组可能存在的所有排列集合
+   
+    //给定一个数组,求数组可能存在的所有排列集合
+    public static List<List<Integer>> permute(int[] nums) {
+        List<List<Integer>> list = new ArrayList<>();
+        backtrack(list , new ArrayList<Integer>() , nums);
+        return list;
+    }
+
+    private static  void backtrack(List<List<Integer>> list , List<Integer> tempList, int [] nums){
+        
+    	//回溯条件,回溯点,回溯到上一层调用的地方
+        if(tempList.size() == nums.length){
+            list.add(new ArrayList<>(tempList));
+            return;
+        }
+        
+		//tempList就是选优条件,不断的递归调用去往下添加元素,发现一个符合回溯条件的,就开始回溯
+        for(int i = 0; i < nums.length; i++){
+        	
+        	if(tempList.contains(nums[i])){
+        		continue;
+        	}
+            
+            tempList.add(nums[i]);
+            
+            backtrack(list, tempList, nums);
+            
+            System.out.println(tempList + "已经走不通了,需要剔除一个["+tempList.get(tempList.size() - 1)+"]回溯试试看");
+            
+            tempList.remove(tempList.size() - 1);
+        }
+        
+    }

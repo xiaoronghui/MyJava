@@ -1,0 +1,55 @@
+
+1.概念 :
+
+	门面模式，是指提供一个统一的接口去访问多个子系统的多个不同的接口，它为子系统中的一组接口提供一个统一的高层接口。使得子系统更容易使用。
+
+           作用 :
+           
+    1) 比如一个系统的启动需要cpu,disk,memory都要启动,我们不可能让使用者一个一个去调用,我们包装起来,让客户端调用一个方法,这个方法里面调用cpu,disk,memory的start即可;
+
+    2) 有些时候,我么有一个service类,可是这个service类里面的还包含很多其它不想暴露给外面的方法,这个时候,我们使用门面模式来把一些不想暴露给外界的方法屏蔽掉.
+    
+                      比如说dubbo接口.
+
+              
+2.使用场景 :    
+ 
+    tomcat的Request类里面有很多tomcat自己内部使用的方法.tomcat为了不让内部的方法暴露出去,使用了门面模式ResquetFace来做这件事,ResquetFace选择性的暴露客户端想用的方法.
+    
+    疑问 : 
+    
+        可是javax.servlet.http.HttpServletRequest和ResquetFace都实现了javax.servlet.http.HttpServletRequest, javax.servlet.ServletRequest
+    
+        接口啊,是不是用门面模式,客户端使用的方法还是一直啊,到底是防止什么呢?
+        
+     解析 :
+     
+             如果项目引入了tomcat的jar包,当拿到HttpServletRequest指向的实例的时候,强转回Request对象,这样就依然可以使用Request内部不想暴露的方法了.
+             
+            而使用了ResquetFace之后,只能强转回ResquetFace,这样就起到了保护内部方法的作用.
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+                           
+
+    

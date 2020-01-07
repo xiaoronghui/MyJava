@@ -1,0 +1,67 @@
+
+1.概念 
+
+   参考 : https://www.cnblogs.com/zuoxiaolong/p/pattern6.html
+
+
+   定义 : 为创建一组相关或相互依赖的对象提供一个接口(如List接口)，而且无需指定他们的具体类(生产出来的产品也是接口)。
+   
+  解析 :
+ 
+    定义中说了，我们是要创建一个接口， 而这个接口是干嘛的呢，前面说了，是为了创建一组相关或者相互依赖的对象，而且还有一点就是，
+    
+    我们创建的对象不是具体的类，也就是说我们创建的是一个接口或者一个抽象类。
+  
+使用场景 :  
+
+  1) JDK中的List接口就是抽象工厂
+  
+    public interface List<E> extends Collection<E> {
+    
+	    Iterator<E> iterator();//一种产品
+	
+	    Object[] toArray();
+	
+	    <T> T[] toArray(T[] a);
+	
+	    ListIterator<E> listIterator();//另外一种产品
+	
+	    ListIterator<E> listIterator(int index);
+
+	}
+
+  2) ArrayList和LinkedList就是抽象工厂List接口的具体实现工厂,
+  
+               他们都能制造产品Iterator和产品ListIterator.只是产生的实例不一样,但是类型是一样的.
+	
+  总结 : 抽象工厂就是这个工厂可以制造不同类型的产品,产品具体长什么样由具体的工厂去实现.参考List抽象工厂即可.
+
+    
+           
+           
+         
+
+   
+
+
+        
+
+        
+
+ 
+
+     
+  
+
+
+
+
+
+
+
+
+
+
+
+        
+　

@@ -1,0 +1,66 @@
+
+1.概念 :
+
+    该模式的思想就是将一个对象作为原型，对其进行复制、克隆，产生一个和原对象类似的新对象。
+	
+   浅复制：将一个对象复制后，基本数据类型的变量都会重新创建，而引用类型，指向的还是原对象所指向的。
+
+   深复制：将一个对象复制后，不论是基本数据类型还有引用类型，都是重新创建的。简单来说，就是深复制进行了完全彻底的复制，而浅复制不彻底。
+             
+2.使用场景 :    
+
+   当我们有一个类的实例化过程比较漫长的时候,每个实例大部分的属性值都一样,只有少部分的属性值不一样.这个时候,如果每个对象都赋值
+   
+ 哪些公共的一样的属性值的时候就有些浪费了,不仅增加了代码量,而且完全没有必要.这个时候我们就会想,能不能实例化的时候把这些初值赋值好,
+ 
+ 而且还要快速.这就要使用原型模式了.
+
+3.实现方式
+
+  必须继承Cloneable接口
+  
+  /* 浅复制 */  
+    public Object clone() throws CloneNotSupportedException {
+        // 因为Cloneable接口是个空接口，你可以任意定义实现类的方法名
+        // 如cloneA或者cloneB，因为此处的重点是super.clone()这句话
+        // super.clone()调用的是Object的clone()方法
+        // 而在Object类中，clone()是native（本地方法）的
+        return super.clone();
+    }
+
+	/* 深复制 */
+	public Object deepClone() throws IOException, ClassNotFoundException {
+	
+	    /* 写入当前对象的二进制流 */
+	    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(bos);
+	    oos.writeObject(this);
+	
+	    /* 读出二进制流产生的新对象 */
+	    ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+	    ObjectInputStream ois = new ObjectInputStream(bis);
+	    return ois.readObject();
+	} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+                           
+
+    

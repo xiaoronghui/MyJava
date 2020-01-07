@@ -1,0 +1,5 @@
+ 1.UnsupportedOperationException异常
+  
+     JDK定义这个异常是为了某些适配器并没有真正的实现某个接口,想让子类重写,就抛出这个异常
+     
+     参考AbstractMap的186行

@@ -1,0 +1,3 @@
+1.像图片和视频这类的文件,因为它是不是由字符组成,所以只能使用字节流来进行操作.
+
+2.字节流可以通过转换流 InputStreamReader 和 OutputStreamWriter 转换为字符流

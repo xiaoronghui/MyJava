@@ -1,0 +1,15 @@
+JVM java虚拟机
+
+	实现java跨平台的核心,负责解释执行class文件
+
+JRE java运行环境
+
+	是运行java程序所必须的环境的集合,包括JVM标准实现以及java核心类库
+	bin目录就是JVM
+	JRE=JVM+lib
+
+JDK java开发工具包
+
+	是整个java的核心,包括java运行环境,许多开发与调试java工具和java基础的类库,
+	JDK=JRE+JAVA开发工具
+

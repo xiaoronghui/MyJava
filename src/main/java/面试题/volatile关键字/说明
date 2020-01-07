@@ -1,0 +1,90 @@
+volatile详解参考 : https://www.cnblogs.com/dolphin0520/p/3920373.html
+
+1.volatile可以保证可见性和有序性,如何使用案例来体现它的可见性?
+
+   参考 : https://my.oschina.net/u/1539926/blog/262891
+
+2.如何使用案例来体现它的有序性?
+
+  参考 : https://www.cnblogs.com/barrywxx/p/10153860.html
+
+3.如何来区分使用了volatile和没使用volatile的区别?
+
+   看自己的测试就可以说明
+   
+4.并发问题是什么?
+  
+  在并发编程中，我们通常会遇到以下三个问题：原子性问题，可见性问题，有序性问题
+  
+  要想并发程序正确地执行，必须要保证操作的原子性、可见性以及有序性。
+
+5.面试回答 :
+
+   volatile可以保证操作的可见性和有序性,除了能保证long和double变量的赋值原子性外,其它操作都不能保证原子性.
+   
+ 6.理解volatile的意义
+ 
+    能让我们理解为什么明明正确的代码会运行错误,在可能发生此种错误的情况下使用volatile来解决.
+    
+ 7.Java 中能创建 volatile 数组吗？
+
+	能，Java 中可以创建 volatile 类型数组.但该关键字只能保证整个数组的引用改变时的可见性和有序性.
+	
+	但是不能保证对内部元素操作可见性和有序性.为什么呢,因为该关键字是保护具体指令的.
+	
+8.volatile 能使得一个非原子操作变成原子操作吗？
+
+   long和double类型都是64位的,在32的处理器下,赋值操作要分两步才能完成.在并发情况下,线程会看到的数据有可能不一致.
+   
+   但是加上volatile修饰该变量后,可以保证原子操作.
+   
+9.volatile 修饰符的有过什么实践？
+
+   用于修饰long和double变量,用于状态标记量,用于单例模式的双检测锁
+   
+ ===volatile使用场景====
+ 
+   1) 状态标记量(确保有序性,而不造成空指针)
+
+   2) 单例模式双检测锁(确保第二次检测的时候从内存中读取)   
+   
+		 *   为什么第二次还要去检测一次?
+		 *      
+		 *       假设现在A,B两个线程同时在第一次检测为null,A线程进入了同步锁,new了一个实例,然后
+		 *       释放锁,正准备返回的时候,B线程也进入了同步锁,如果此时不判断是否为null的话,那么又会产生一个
+		 *       新的实例,那么A和B线程返回的实例是不一样的.所以第二次还要检测一次;
+		 *       
+		 *  为什么要使用关键字volatile呢?
+		 *  
+		 *      因为线程B有可能读取的是缓存,使用volatile之后必须从内存中重新读取一次.
+		 *
+		 */
+		public class DoubleCheckSingleton {
+		
+			private static volatile DoubleCheckSingleton singleton = null;
+			private DoubleCheckSingleton(){};
+			
+			public DoubleCheckSingleton getInstance(){
+				if(singleton == null){  //--> 第一次检测是否为null
+					synchronized (DoubleCheckSingleton.class) {     //--> 给class加上同步锁
+						if(singleton == null){  //-->第二次检测是否为null
+							singleton = new DoubleCheckSingleton();
+						}
+					}
+				}
+				return singleton;
+			}
+		}
+   
+   
+   
+   
+   
+   
+   
+   
+   
+     
+      
+
+     

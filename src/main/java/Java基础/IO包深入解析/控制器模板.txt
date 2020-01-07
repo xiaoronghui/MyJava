@@ -1,0 +1,226 @@
+package com.ax.controllers;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+
+import org.apache.commons.beanutils.BeanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.alibaba.fastjson.JSON;
+import com.ax.domain.##bigClassName##;
+import com.ax.enums.ResponseCode;
+import com.ax.exceptions.BusinessException;
+import com.ax.query.##bigClassName##Query;
+import com.ax.service.remote.impl.##bigClassName##RemoteServiceImpl;
+import com.ax.utils.ResultDO;
+import com.ax.utils.ResultUtils;
+import com.ax.utils.TfBindingResultUtils;
+import com.ax.utils.ValidateUtils;
+import com.ax.utils.WebExceptionUtils;
+import com.ax.vo.##bigClassName##AddVo;
+import com.ax.vo.##bigClassName##QueryVo;
+import com.ax.vo.##bigClassName##UpdateVo;
+
+@Controller
+@RequestMapping("/##littleClassName##")
+public class ##bigClassName##Controller {
+   
+	private static final Logger LOG = LoggerFactory.getLogger(##bigClassName##Controller.class);
+	
+	@Resource
+	##bigClassName##RemoteServiceImpl  ##littleClassName##RemoteService;
+	
+	/**
+	 * ##bigClassName##新增
+	 * @param ##bigClassName##AddVo
+	 */
+	@ResponseBody
+	@RequestMapping(value="/add##bigClassName##", method = {RequestMethod.GET,RequestMethod.POST}, produces ="application/json;charset=UTF-8")
+	public String add##bigClassName##(@Valid ##bigClassName##AddVo vo , BindingResult result , HttpServletRequest request , HttpServletResponse response) {
+		
+		ResultDO<Integer> rst = new ResultDO<Integer>(false);
+		
+		try {
+			
+			List<String> errorMsgs = TfBindingResultUtils.getErrorMsgs(result);
+			
+			if(errorMsgs != null)
+				throw new BusinessException(ResponseCode.VERIFICATION_FAILED.getCode() , errorMsgs.toString());
+			
+			##bigClassName## ##littleClassName## = new ##bigClassName##();
+			BeanUtils.copyProperties(##littleClassName##, vo);
+			
+			rst = ##littleClassName##RemoteService.add##bigClassName##(##littleClassName##);
+			
+		} catch (Exception e) {
+			WebExceptionUtils.setErrorMsg(e, rst);
+			LOG.info("add##bigClassName##发生错误==>code : {} , message : {}" , rst.getCode() , rst.getMessage());
+		}
+		
+		return JSON.toJSONString(rst);
+		
+	}
+	
+	/**
+	 * 根据##bigClassName##主键ID删除一条
+	 * @param ##littleClassName##Id
+	 */
+	@ResponseBody
+	@RequestMapping(value="/delete##bigClassName##ById", method = {RequestMethod.GET,RequestMethod.POST}, produces ="application/json;charset=UTF-8")
+	public String delete##bigClassName##ById(@RequestParam("##littleClassName##Id") String ##littleClassName##Id , HttpServletRequest request , HttpServletResponse response) {
+		
+		  ResultDO<Integer> rst = ResultUtils.newFailureInstance(ResponseCode.SEARCH_FAILE);
+			
+			try {
+				
+				if(!ValidateUtils.isID(##littleClassName##Id))
+					throw new BusinessException(ResponseCode.VERIFICATION_FAILED.getCode(),"ID不合法!");
+				
+				rst = ##littleClassName##RemoteService.delete##bigClassName##ById(Integer.parseInt(##littleClassName##Id));
+				
+			}catch (Exception e) {
+				WebExceptionUtils.setErrorMsg(e, rst);
+				LOG.info("delete##bigClassName##ById发生错误==>code : {} , message : {}" , rst.getCode() , rst.getMessage());
+			}
+			
+			return JSON.toJSONString(rst);
+	}
+	
+	/**
+	 * ##bigClassName##新增
+	 * @param ##bigClassName##AddVo
+	 */
+	@ResponseBody
+	@RequestMapping(value="/update##bigClassName##", method = {RequestMethod.GET,RequestMethod.POST}, produces ="application/json;charset=UTF-8")
+	public String update##bigClassName##(@Valid ##bigClassName##UpdateVo vo , BindingResult result , HttpServletRequest request , HttpServletResponse response) {
+		
+		ResultDO<Integer> rst = new ResultDO<Integer>(false);
+		
+		try {
+			
+			List<String> errorMsgs = TfBindingResultUtils.getErrorMsgs(result);
+			
+			if(errorMsgs != null)
+				throw new BusinessException(ResponseCode.VERIFICATION_FAILED.getCode() , errorMsgs.toString());
+			
+			##bigClassName## ##littleClassName## = new ##bigClassName##();
+			
+			BeanUtils.copyProperties(##littleClassName##, vo);
+			
+			rst = ##littleClassName##RemoteService.update##bigClassName##(##littleClassName##);
+			
+		} catch (Exception e) {
+			WebExceptionUtils.setErrorMsg(e, rst);
+			LOG.info("add##bigClassName##发生错误==>code : {} , message : {}" , rst.getCode() , rst.getMessage());
+		}
+		
+		return JSON.toJSONString(rst);
+		
+	}
+	
+	/**
+	 * 根据##bigClassName##主键ID查询一条
+	 * @param ##littleClassName##Id
+	 */
+	@ResponseBody
+	@RequestMapping(value="/find##bigClassName##ById", method = {RequestMethod.GET,RequestMethod.POST}, produces ="application/json;charset=UTF-8")
+	public String find##bigClassName##ById(@RequestParam("##littleClassName##Id") String ##littleClassName##Id , HttpServletRequest request , HttpServletResponse response) {
+		
+		   ResultDO<##bigClassName##> rst = ResultUtils.newFailureInstance(ResponseCode.SEARCH_FAILE);
+			
+			try {
+				
+				if(!ValidateUtils.isID(##littleClassName##Id)){
+					throw new BusinessException(ResponseCode.VERIFICATION_FAILED.getCode(),"ID不合法!");
+				}
+				
+			    ResultDO<##bigClassName##> findRst = ##littleClassName##RemoteService.find##bigClassName##ById(Integer.parseInt(##littleClassName##Id));
+			    
+				if(findRst.isEmpty())
+					return JSON.toJSONString(findRst);
+				
+				##bigClassName## ##littleClassName## = findRst.getModule();
+				
+				//为什么这里要多此一举呢? 因为有些value可能想要格式化成自己想要的格式,可以在下面进行调整
+				Map<String,Object> map = new HashMap<String,Object>();
+				
+				##object2map##
+				
+				return JSON.toJSONString(ResultUtils.newSuccessInstance(ResponseCode.SEARCH_SUCCESS,map));
+				
+			}catch (Exception e) {
+				WebExceptionUtils.setErrorMsg(e, rst);
+				LOG.info("find##bigClassName##ById发生错误==>code : {} , message : {}" , rst.getCode() , rst.getMessage());
+			}
+			
+			return JSON.toJSONString(rst);
+	}
+	
+	/**
+	 * ##bigClassName##列表查询
+	 * @param ##bigClassName##QueryVo
+	 */
+	@ResponseBody
+	@RequestMapping(value="/find##bigClassName##List", method = {RequestMethod.GET,RequestMethod.POST}, produces ="application/json;charset=UTF-8")
+	public String find##bigClassName##List(@Valid ##bigClassName##QueryVo vo , BindingResult result , HttpServletRequest request , HttpServletResponse response) {
+		
+		ResultDO<List<Map<String,Object>>> rst = ResultUtils.newFailureInstance(ResponseCode.SEARCH_FAILE);
+		
+		List<String> errorMsgs = TfBindingResultUtils.getErrorMsgs(result);
+		
+		try {
+			
+			if(errorMsgs != null)
+				throw new BusinessException(ResponseCode.VERIFICATION_FAILED.getCode() , errorMsgs.toString());
+			
+			if(vo.getPageSize() <= 0 || vo.getPageSize() > 50)
+				throw new BusinessException(ResponseCode.VERIFICATION_FAILED.getCode() , "pageSize必须在1-50之间");
+			
+			
+			##bigClassName##Query query = new ##bigClassName##Query();
+			BeanUtils.copyProperties(query, vo);
+			
+			ResultDO<List<##bigClassName##>> findRst = ##littleClassName##RemoteService.find##bigClassName##List(query, true);
+			
+			if(findRst.isEmpty())
+				return JSON.toJSONString(findRst);
+			
+			List<Map<String,Object>> mapList = new ArrayList<Map<String,Object>>();
+			List<##bigClassName##> list = findRst.getModule();
+			
+			//为什么这里要多此一举呢? 因为有些value可能想要格式化成自己想要的格式,可以在下面进行调整
+			for(##bigClassName## ##littleClassName## : list){
+			
+				Map<String,Object> map = new HashMap<String,Object>();
+				
+				##object2map##
+				
+				mapList.add(map);
+				
+			}
+			
+			rst =  ResultUtils.newSuccessInstance(ResponseCode.SEARCH_SUCCESS, mapList,findRst.getTotalCount());
+			
+		}catch (Exception e) {
+			WebExceptionUtils.setErrorMsg(e, rst);
+			LOG.info("find##bigClassName##List发生错误==>code : {} , message : {}" , rst.getCode() , rst.getMessage());
+		}
+		
+		return JSON.toJSONString(rst);
+	}
+	
+}

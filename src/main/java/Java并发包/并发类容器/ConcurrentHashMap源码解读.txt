@@ -1,0 +1,417 @@
+ 
+1.ConcurrentMap接口解析
+
+  putIfAbsent(K key, V value)  如果key不存在才插入
+ 
+  replace(K key, V value) 如果key存在才插入
+
+  remove(Object key, Object value) 如果key存在且值等于value则删除该元素
+
+  replace(K key, V oldValue, V newValue)如果key存在且值等于oldValue,则把值替换为newValue
+
+2.RETRIES_BEFORE_LOCK属性的作用?
+
+  加锁前重试次数，取size时会用到
+
+
+3.segmentShift和segmentMask的作用?
+
+ segmentShift和segmentMask分别表示段偏移量和段掩码，这两个和segment的定位比较相关。
+
+4.segmentFor方法解析
+
+   final Segment<K,V> segmentFor(int hash) {
+        return segments[(hash >>> segmentShift) & segmentMask];
+   }
+
+5.构造方法分析
+  
+
+  //并发等级是段数组的大小,initialCapacity是所有Segment桶大小之和.
+  public ConcurrentHashMap(int initialCapacity,float loadFactor, int concurrencyLevel) {
+                             
+        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
+            throw new IllegalArgumentException();
+
+        if (concurrencyLevel > MAX_SEGMENTS)  //不能超过2的16次方,MAX_SEGMENTS的值是2的16次方
+            concurrencyLevel = MAX_SEGMENTS;
+
+        // Find power-of-two sizes best matching arguments
+        int sshift = 0;
+        int ssize = 1;
+        while (ssize < concurrencyLevel) {
+            ++sshift;     //统计偏移了几次
+            ssize <<= 1;  //向左移动1位
+        }
+        segmentShift = 32 - sshift;   //整型最高是32位,剩下的偏移量
+        segmentMask = ssize - 1;      //这里相当于hashmap中的length-1
+        this.segments = Segment.newArray(ssize);  //段数组
+
+        if (initialCapacity > MAXIMUM_CAPACITY)  
+            initialCapacity = MAXIMUM_CAPACITY;
+        int c = initialCapacity / ssize;  //需要平均分配到每一个桶中,算出每个Segment需要多少个容量
+        if (c * ssize < initialCapacity)  //因为刚才initialCapacity / ssize会被四舍五入,所以补个++c
+            ++c;
+        int cap = 1;
+        while (cap < c)  //把容量搞成2的整数倍
+            cap <<= 1;
+
+        for (int i = 0; i < this.segments.length; ++i) //段数组里面每个位置放上Segment.
+        this.segments[i] = new Segment<K,V>(cap, loadFactor);
+    }
+
+6.Segment为什么是线程安全的?和hashtable有什么区别?
+
+  1) Segment继承了ReentrantLock
+
+         ReentrantLock在获取锁的时候，首先会检查当前同步对象的阻塞状态，如果已经是被某个线程持有，会检查持有的线程是否就是当前线程。
+      
+         同步对象有一个exclusiveOwnerThread属性用来表征占有此同步对象的线程。如果当前线程就是持有该同步对象的线程，那么就不用阻塞否则
+
+         阻塞; 
+
+  2) 在Segment可以使用lock()来同步.等价于synchronized(this)
+       
+       //仅仅锁住读取的这一步,细粒度非常好
+       V readValueUnderLock(HashEntry<K,V> e) {    
+            lock();
+            try {
+                return e.value;
+            } finally {
+                unlock();
+            }
+       }
+
+7.Segment的get方法解析
+
+   V get(Object key, int hash) {
+            if (count != 0) { 
+                HashEntry<K,V> e = getFirst(hash);
+                while (e != null) {
+                    if (e.hash == hash && key.equals(e.key)) {
+                        V v = e.value;
+                        
+                        //不为null就返回值,而为null使用readValueUnderLock(e)返回,为什么这么做?
+                        //为null的时候可能是刚刚有人并发的put,但此时为null,锁定之后确保能的得到值.
+                        //不为null的时候,则当前读到什么就是什么.后面改的也无所谓了.
+                        if (v != null)
+                            return v;
+                        return readValueUnderLock(e);   
+                    }
+                    e = e.next;
+                }
+            }
+            return null;
+    }
+   
+8. rehash方法中的疑问
+
+    HashEntry<K,V> lastRun = e;
+    int lastIdx = idx;
+    //查找重新计算索引后不一样的entry,最后那个不一样的.为了重用此节点.尽量少的new
+    for (HashEntry<K,V> last = next;
+         last != null;
+         last = last.next) {
+        int k = last.hash & sizeMask;
+        if (k != lastIdx) {
+            lastIdx = k;
+            lastRun = last;
+        }
+    }
+
+    //如果lastIdx这个位置上已经有元素该怎么办?这不是覆盖了吗? 
+    //原因扩容两倍之后,重新计算的索引要么在原来的位置上,要么在原来的位置加上原来数组的长度(该位置肯定是新加的位置),从而该位置不可能存在元素.
+    newTable[lastIdx] = lastRun;  
+
+    for (HashEntry<K,V> p = e; p != lastRun; p = p.next) {
+        int k = p.hash & sizeMask;
+        HashEntry<K,V> n = newTable[k];   
+        newTable[k] = new HashEntry<K,V>(p.key, p.hash, n, p.value);
+                                        
+    }	
+    
+   参考:　http://blog.csdn.net/zhaozhenzuo/article/details/37742381
+
+
+9.扩容问题
+
+  1) ConcurrentHashMap是segments数组,在不传参数的情况下,默认大小是16(最多放16个),  this.segments = Segment.newArray(ssize);
+
+     DEFAULT_CONCURRENCY_LEVEL 默认决定this.segments数组的大小,也就是并发等级 
+
+  2) DEFAULT_INITIAL_CAPACITY 默认也为16,它默认决定每个segment内部HashEntry<K,V>[] table 数组的大小
+
+  3) 扩容指的是segment内部的count大于threshold的时候,就给table扩容,该segment虽然扩容,别的segment则不受影响.
+
+  4) 如果在new ConcurrentHashMap的时候传入初始容量initialCapacity,那么这个初始容量会平均分配到每一个segment中,
+
+     假设初始容量为32,并发等级为16,那么每个segment的初始容量就是2,也就是table数组的长度为2.
+
+10.table上同一个链表的hash研究
+
+  同一个链表的所有的Entry的hash可能是不一样的, 因为　hash & (tab.length - 1) ,当hash大于(tab.length - 1)的时候会被高位截取.
+
+  计算结果永远小于或等于(tab.length - 1),从而链表中每个entry的hash是不一样的.
+
+  当扩容的时候,(tab.length - 1)变大了,如果此时的hash小于(tab.length - 1),那么计算的结果又不一样了.
+
+  结论:　扩容之后在大部分情况下hash值是不变的 , 但是有可能产生变化.
+
+11.ConcurrentHashMap构造方法解析
+
+  public ConcurrentHashMap(int initialCapacity,float loadFactor, int concurrencyLevel) {
+        
+        //检测参数是否合法                     
+        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
+            throw new IllegalArgumentException();
+        
+        //并发等级参数不能超过最大并发等级
+        if (concurrencyLevel > MAX_SEGMENTS)   //MAX_SEGMENTS是2的16次方
+            concurrencyLevel = MAX_SEGMENTS;
+        
+        //让并发等级总是为2的倍数,总是大于或等于传入的并发等级
+        int sshift = 0;
+        int ssize = 1;
+        while (ssize < concurrencyLevel) {
+            ++sshift;   //记录并发等级到底是2的几次方
+            ssize <<= 1;
+        }
+	
+        //segmentShift有什么用? 为什么要32减去shift? segmentFor方法有用到
+        segmentShift = 32 - sshift;
+	 //这里其实是length-1,称之为段掩码.因为2^n-1是n个1,通过截取hash的高位起到和%等价的作用.因为屏蔽的hash的高位,所以说成是掩码
+        segmentMask = ssize - 1; 
+        this.segments = Segment.newArray(ssize);  //根据并发等级来初始化Segment数组
+
+        if (initialCapacity > MAXIMUM_CAPACITY)
+            initialCapacity = MAXIMUM_CAPACITY;
+
+        //容量平均分配到每个Segment中
+        int c = initialCapacity / ssize;
+        if (c * ssize < initialCapacity)
+            ++c;
+        int cap = 1;
+        while (cap < c)
+            cap <<= 1;
+        for (int i = 0; i < this.segments.length; ++i)
+            this.segments[i] = new Segment<K,V>(cap, loadFactor);
+    }
+  
+  
+
+12.整数中 << 符号最高偏移几位
+
+ 整型的范围,4个字节工32位:
+  
+	值为 2^31－1 的常量，它表示 int 类型能够表示的最大值。 二进制位: 01111111111111111111111111111111
+
+
+	值为 －2^31 的常量，它表示 int 类型能够表示的最小值。 二进制: 10000000000000000000000000000000
+
+
+　　　　注：
+
+          1) 首位是符号位,0表示正数,1表示负数.  
+       
+          2) 负数在计算机是以补码保存的. 补码 = 原码取反码+1
+
+             求负数的值: 补码 -1 然后取反,得出的二进制数就是负数的值.算出值之后再加个负号就行了.
+
+ 为什么负数要以补码保存?
+
+ 原因是减法也可按加法来处理。另外，两个用补码表示的数相加时，如果最高位（符号位）有进位，则进位被舍弃。 
+
+ << 符号最高偏移几位呢?
+
+  如果偏移31位,变成了10000000000000000000000000000000,正数都变成了负数.偏移32位会变成 0000000000000000000000000000001,
+
+  结论　:　偏移32位会形成一个循环.从而最高偏移32位.
+
+ 溢出后补到最后一位. 那么偏移33位就等价于偏移一位.  1<<33 等价于 1<<(33 -32)
+
+
+ 整型的范围是-2147483648 ~ 2147483647,为什么正数会比负数少1呢?
+
+ 通过补码保存,计算出的结果确实是多1
+
+  
+13.segmentFor方法该如何理解?
+   
+   //该方法通过hash值定位元素元素放到了哪个段中,返回这个段的引用
+
+   final Segment<K,V> segmentFor(int hash) {
+        //本来是定位段的,hash值通常在高位,hash >>> segmentShift 是为了通过高位来定位所在位置.
+        return segments[(hash >>> segmentShift) & segmentMask];
+    }
+
+15.isEmpty方法解析
+  
+  //该方法只是此时此刻为空
+  public boolean isEmpty() {
+        final Segment<K,V>[] segments = this.segments;
+        int[] mc = new int[segments.length];
+        int mcsum = 0;
+        for (int i = 0; i < segments.length; ++i) {
+            if (segments[i].count != 0)
+                return false;
+            else
+                mcsum += mc[i] = segments[i].modCount;
+        }
+        
+        if (mcsum != 0) {
+            //如果count不等于0或有人改动,则认为是empty
+            for (int i = 0; i < segments.length; ++i) {
+                if (segments[i].count != 0 ||
+                    mc[i] != segments[i].modCount)
+                    return false;
+            }
+        }
+        return true;
+    }
+ 
+16.size方法解析
+
+ public int size() {
+        final Segment<K,V>[] segments = this.segments;
+        long sum = 0;
+        long check = 0;
+        int[] mc = new int[segments.length];
+	
+　　　　//现在无锁的情况下统计个数,如果第一次不成功,就再重试一次
+        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
+            check = 0;
+            sum = 0;
+            int mcsum = 0;
+            for (int i = 0; i < segments.length; ++i) {
+                sum += segments[i].count;
+                mcsum += mc[i] = segments[i].modCount;
+            }
+            if (mcsum != 0) {
+                for (int i = 0; i < segments.length; ++i) {
+                    check += segments[i].count;
+                    if (mc[i] != segments[i].modCount) {
+                        check = -1; 
+                        break;
+                    }
+                }
+            }
+            if (check == sum)
+                break;
+        }
+
+	//如果发现此时有人在改动,逐个锁定每个段,然后再统计
+        if (check != sum) { 
+            sum = 0;
+            for (int i = 0; i < segments.length; ++i)
+                segments[i].lock();
+            for (int i = 0; i < segments.length; ++i)
+                sum += segments[i].count;
+            for (int i = 0; i < segments.length; ++i)
+                segments[i].unlock();
+        }
+        if (sum > Integer.MAX_VALUE)
+            return Integer.MAX_VALUE;
+        else
+            return (int)sum;
+    }          
+　　　　
+17.我依然搞不明白为什么null的时候要锁定读取!
+
+                       
+
+18.containsValue方法解析,的
+
+  注:811行有一句废代码
+	
+　　//显示无锁查询,如果没找到,检测此时有没有人再改,若没人在改直接返回false;若有人改,则全部锁定找一遍.
+　 public boolean containsValue(Object value) {
+        if (value == null)
+            throw new NullPointerException();
+        final Segment<K,V>[] segments = this.segments;
+        int[] mc = new int[segments.length];
+
+        // Try a few times without locking
+        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
+            int sum = 0;
+            int mcsum = 0;
+            for (int i = 0; i < segments.length; ++i) {
+                int c = segments[i].count;
+                mcsum += mc[i] = segments[i].modCount;
+                if (segments[i].containsValue(value))
+                    return true;
+            }
+            boolean cleanSweep = true;
+            if (mcsum != 0) {
+                for (int i = 0; i < segments.length; ++i) {
+                    int c = segments[i].count;
+                    if (mc[i] != segments[i].modCount) {
+                        cleanSweep = false;
+                        break;
+                    }
+                }
+            }
+            if (cleanSweep)
+                return false;
+        }
+        // Resort to locking all segments
+        for (int i = 0; i < segments.length; ++i)
+            segments[i].lock();
+        boolean found = false;
+        try {
+            for (int i = 0; i < segments.length; ++i) {
+                if (segments[i].containsValue(value)) {
+                    found = true;
+                    break;
+                }
+            }
+        } finally {
+            for (int i = 0; i < segments.length; ++i)
+                segments[i].unlock();
+        }
+        return found;
+    }
+　
+总结:　
+
+  1.concurrentHashMap容器是一个segment段数组,默认大小是16,称之为并发等级,当然,我们可以传入这个参数,构造方法总会使它
+
+   为2的倍数,为什么要2的倍数,因为2的n次方-1的二进制代码总是n个1, 如果让hash值和长度的2^n-1进行与运算等价于取余运算,提高寻址效率.
+
+  2.默认初始容量是16,当然,我们可以传入这个参数,构造方法总会使它为2的倍数,得出这个结果后,平均分配到每个segment段中.
+
+  3.segment段类似于hashtable,但是它和hashtable又是有区别.它继承了重入锁类ReentrantLock,提供了lock()方法,该方法等价于与synchronized(this),
+
+    当进行写操作的时候会使用该方法进行锁定,这样保证了线程安全. 读取的时候,并不是完全不锁定,如果返现值不为null则直接返回该值,如果为null,
+
+    则进行阻塞读取.以确保能返回值.
+
+    segment段的容器是HashEntry数组,HashEntry是一个链表.
+
+  4.concurrentHashMap的put操作,先得到hashcode,然后调用hash方法对hashcode进行散列得到hash值,
+ 
+   散列运算是为了二进制值不会总是集中在高位,这样取余运算得出的数组索引值会平均的分布在段数组中,然后使用该值与段数组的length-1进行与运算,得到
+
+   段索引.然后拿到该segment段,调用put方法进行添加操作.put方法使用了lock()方法来同步.如果put的元素是新增的,而且entry个数超过了阀值,则对该段的segment
+   
+   的hashEntry进行扩容2倍,扩容是重新生成一个数组,把原来的元素装进去,然后让table重新指向这个新数组.这样做的好处就是不影响读操作.
+  
+ 
+   5.get操作也是先通过hashcode找到段,然后进行get操作;get操作在值不为null的时候是不加锁的,如果发现为null,会加锁再读取一次,以确保值的正确.
+
+    
+   6.说白就是尽可能减小同步代码的范围,尽可能小.专业一点的说法就是降低锁粒度. 
+
+     粒度的意思是颗粒的大小.那么降低锁粒度就是让锁定的代码体积减小.
+
+   7.和hashtable的区别
+
+      举个例子,现在需要插入两个key,如果同时插入在hashtable且并发的情况下,两个put需要互相等待,前一个put完了后面一个才能put进去.
+
+      而插入到concurrentHashMap的时候,有可能他们会被分配到不同的segment段中,这样他们可以同时插入,互补影响.当然如果分配到同一个segment段的话,还是互相等待的.
+
+   8.size方法
+
+      先采用不用加锁的方式进行计算总的元素个数,如果发现此时有别的线程正在写操作,则刚才的计算不算,重新把每个segment段逐个锁定,然后计算总的元素个数.
+
+      然后再逐个释放锁.
+

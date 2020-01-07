@@ -1,0 +1,79 @@
+
+1.概念 :
+
+   参考 : https://www.cnblogs.com/zuoxiaolong/p/pattern10.html
+   
+   定义 :
+   
+       一般是为了统一子类的算法实现步骤，所使用的一种手段或者说是方式。它在父类中定义一系列算法的步骤，而将具体的实现都推迟到子类。
+       
+  理解 :
+  
+       比如我们要实现某个功能,需要按照一定的步骤和次序,通常情况下,每个子类的实现步骤和次序都是一模一样的,只有中间几个部分的内容
+       
+       是不一样的.这个时候我们可以把这种相同的内容部分,相同的步骤部分抽取出来,放到一个公共的地方(父类的公共方法funA()),不同的地方供子类去重新
+       
+       实. 要使用的时候就调通funA(),这样就实现了统一子类的实现步骤.
+
+2.使用场景 :    
+
+    JDK的ClassLoader,还有JSP模板类.
+
+    JDK的ClassLoader中定义的算法步骤是 : 
+
+          1) 首先看是否有已经加载好的类。
+
+          2) 如果父类加载器不为空，则首先从父类类加载器加载。
+
+          3) 如果父类加载器为空，则尝试从启动加载器加载。
+
+          4) 如果两者都失败，才尝试从findClass方法加载。
+          
+     注 :  公共部分定义了类加载器加载类的步骤,必须按照算法步骤来.最后才调用用户定义的findClass.这样能确保
+      
+            子类继承之后,不会不按顺序加载,出现一个类多份class.(其实在某些场合也可以多份,比如tomcat,参考博客)
+
+    //这里就是父类算法的定义
+    protected synchronized Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException{
+	    Class c = findLoadedClass(name);
+	    if (c == null) {
+	        try {
+		        if (parent != null) {
+		            c = parent.loadClass(name, false);
+		        } else {
+		            c = findBootstrapClass0(name);
+		        }
+	        } catch (ClassNotFoundException e) {
+	            c = findClass(name);
+	        }
+	    }
+	    if (resolve) {
+	        resolveClass(c);
+	    }
+	    return c;
+    }
+    
+    //这里留了一个方法给子类选择性覆盖
+    protected Class<?> findClass(String name) throws ClassNotFoundException {
+   		 throw new ClassNotFoundException(name);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+                           
+
+    

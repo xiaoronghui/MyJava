@@ -1,0 +1,64 @@
+
+1.概念 :
+
+	参考 : https://www.cnblogs.com/xrq730/p/4906487.html
+
+    适配器模式（Adapter Pattern）：将一个接口转换成客户所希望的另一个接口，
+
+    JDK的应用示例 :
+        
+       (我本来是用FileInputStream读取文件的,但是这个是文本文件,然后我想转换为字符流)
+      
+        BufferedReader 的构造函数为public BufferedReader(Reader in, int sz),
+        
+        他希望得到一个实现Reader接口的实例,而现在只有一个inputSteam,inputSteam的实现类完全可以操作数据流.
+        
+        这个时候我希望能把inputSteam利用上,包装成Reader的形式.然后写了一个叫InputStreamReader的类,这个类可以
+        
+        把InputStream转化为Reader接口的类,InputStreamReader类的设计就是适配器模式.通过适配器InputStreamReader
+        
+        使接口InputStream转化成了BufferedReader所希望的另一个接口Reader,完全符合定义.
+         
+2.使用场景 :    
+
+   1) 当用字节流读取一个文件的时候,发现是一个文本文件,这个时候就可以转换为字符流进行操作,更为方便,
+       InputStreamReader的设计就是基于此场景.
+      
+ 3.为什么对一个接口进行空实现也称之为适配器模式呢?
+ 
+    假设有一个接口X有a,b,c共3个方法,这个时候我有一个类Y想实现这个接口,但是我只想实现a,而b,c方法我不想实现, 
+    
+    这个时候我就写一个类称之为Wrapper,对这个接口进行全部的空实现,然后Y继承这个Wrapper重现自己想要实现的
+    
+    接口即可.
+    
+    解释 : 使接口X转化成了Y所希望的可随意重写的接口Wrapper的形式,符合适配器的定义.当然这个称之为包装器更为贴切,
+     
+              所以这种类要统统在后缀添加Wrapper来命名.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+                           
+
+    
