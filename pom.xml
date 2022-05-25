@@ -14,7 +14,7 @@
 		<!--工程使用utf-8编码 -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<!--统一管理spring版本 -->
-		<spring.version>4.3.2.RELEASE</spring.version>
+		<spring.version>5.2.22.RELEASE</spring.version>
 		<drools.version>6.4.0.Final</drools.version>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
